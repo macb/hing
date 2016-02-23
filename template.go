@@ -6,13 +6,14 @@ global
 	maxconn 10000
 	pidfile /var/run/haproxy.pid
 	# log /dev/log local5
-	# log    local0
+	log 127.0.0.1 local0
 	tune.bufsize 16384
 	tune.maxrewrite 1024
 	spread-checks 4
 
 defaults
-	mode    http
+	log global
+	mode http
 	timeout connect 15s
 	timeout client 60s
 	timeout server 150s
@@ -33,16 +34,20 @@ listen stats
 resolvers dns
 	hold valid 10s
 
+backend not_found
+	# This seems abusive.
+	errorfile 503 /etc/haproxy/errors/not_found.http
+
 frontend ingress
 	bind :80
 
-{{ range $ing := .Items }}
-{{ range $rule := $ing.Spec.Rules }}
+{{ range $ing := .Items }}{{ range $rule := $ing.Spec.Rules }}
 	acl is_{{$ing.Namespace}}_{{$rule.Host}} hdr_beg(host) -i {{$rule.Host}}.%s
 {{ range $idx, $path := $rule.HTTP.Paths }}
 	acl is_{{$ing.Namespace}}_{{$ing.Name}}_{{$idx}} path_beg -i {{$path.Path}}
 	use_backend {{$rule.Host}}_{{$idx}} if is_{{$ing.Namespace}}_{{$rule.Host}} is_{{$ing.Namespace}}_{{$ing.Name}}_{{$idx}}
 {{end}}{{end}}{{end}}
+	default_backend not_found
 
 
 {{ range $ing := .Items }}
