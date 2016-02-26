@@ -43,7 +43,13 @@ func main() {
 		ratelimiter.Accept()
 		err := c.Update()
 		if err != nil {
-			log.Fatalf("failed to update file: %v", err)
+			switch err.(type) {
+			case config.ListError:
+				log.Printf("failed to list ingresses: %s", err.Error())
+				continue
+			default:
+				log.Fatalf("failed to update file: %v", err)
+			}
 		}
 
 		shellout(fmt.Sprintf("haproxy -f %s -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)", path))

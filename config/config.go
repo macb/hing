@@ -16,6 +16,14 @@ var (
 	tmpl = template.Must(template.New("haproxy").Parse(haproxyconf))
 )
 
+type ListError struct {
+	e error
+}
+
+func (l ListError) Error() string {
+	return l.e.Error()
+}
+
 type Config struct {
 	path, baseDomain string
 	client           unversioned.IngressInterface
@@ -50,7 +58,7 @@ type acl struct {
 func (c Config) Update() error {
 	l, err := c.client.List(api.ListOptions{})
 	if err != nil {
-		return err
+		return ListError{err}
 	}
 
 	if reflect.DeepEqual(l.Items, c.previous.Items) {
