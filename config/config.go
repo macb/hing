@@ -130,9 +130,14 @@ func featuresFrom(ingresses []extensions.Ingress, baseDomain string) (backends [
 }
 
 func canonicalizedName(namespace, host, path string) string {
-	// Replace / in the path with _
+	// Replace / in the path with _ and trim any _ prefixes
 	cPath := strings.Replace(path, "/", "_", -1)
+	cPath = strings.TrimLeft(cPath, "_")
+
+	// Replace - and . in hostnames with _
+	cHost := strings.Replace(host, "-", "_", -1)
+	cHost = strings.Replace(cHost, ".", "_", -1)
 
 	// Trim all trailing _ and lowercase
-	return strings.ToLower(strings.TrimRight(fmt.Sprintf("%s_%s_%s", namespace, host, cPath), "_"))
+	return strings.ToLower(strings.TrimRight(fmt.Sprintf("%s_%s_%s", namespace, cHost, cPath), "_"))
 }
