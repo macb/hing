@@ -5,7 +5,7 @@ global
 	daemon
 	maxconn 10000
 	pidfile /var/run/haproxy.pid
-	# log /dev/log local5
+	log /dev/log local5
 	log 127.0.0.1 local0
 	tune.bufsize 16384
 	tune.maxrewrite 1024
