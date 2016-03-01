@@ -324,10 +324,17 @@ func TestUpdate(t *testing.T) {
 									HTTP: &extensions.HTTPIngressRuleValue{
 										Paths: []extensions.HTTPIngressPath{
 											{
-												Path: "/my/path",
+												Path: "/bar/path",
 												Backend: extensions.IngressBackend{
 													ServiceName: "bar",
 													ServicePort: intstr.FromInt(9000),
+												},
+											},
+											{
+												Path: "/baz/path",
+												Backend: extensions.IngressBackend{
+													ServiceName: "baz",
+													ServicePort: intstr.FromInt(9001),
 												},
 											},
 										},
@@ -388,8 +395,10 @@ frontend ingress
 
 	acl is_default_foo_path path_beg /
 	use_backend default_foo if is_default_foo is_default_foo_path
-	acl is_default_bar_my_path_path path_beg /my/path
-	use_backend default_bar_my_path if is_default_bar is_default_bar_my_path_path
+	acl is_default_bar_bar_path_path path_beg /bar/path
+	use_backend default_bar_bar_path if is_default_bar is_default_bar_bar_path_path
+	acl is_default_bar_baz_path_path path_beg /baz/path
+	use_backend default_bar_baz_path if is_default_bar is_default_bar_baz_path_path
 
 	default_backend not_found
 
@@ -398,9 +407,12 @@ frontend ingress
 backend default_foo
 	balance leastconn
 	server foo foo.default.svc.cluster.local:3000 resolvers dns
-backend default_bar_my_path
+backend default_bar_bar_path
 	balance leastconn
 	server bar bar.default.svc.cluster.local:9000 resolvers dns
+backend default_bar_baz_path
+	balance leastconn
+	server bar baz.default.svc.cluster.local:9001 resolvers dns
 `,
 		},
 	}
