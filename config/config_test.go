@@ -18,17 +18,7 @@ func testDir(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatal("failed to build dir")
 	}
-	return dir, func() { defer os.RemoveAll(dir) }
-}
-
-func TestNewConfig(t *testing.T) {
-	dir, cleanup := testDir(t)
-	defer cleanup()
-
-	c := NewConfig(&testclient.FakeIngress{}, dir+"/file", "local.cluster")
-	if c == nil {
-		t.Fatal("failed to build Config")
-	}
+	return dir, func() { os.RemoveAll(dir) }
 }
 
 func TestCanonicalizedName(t *testing.T) {
