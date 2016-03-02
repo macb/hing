@@ -112,8 +112,8 @@ func featuresFrom(ingresses []extensions.Ingress, baseDomain string) (backends [
 				backends = append(backends, b)
 
 				pathACL := acl{
-					Name:    fmt.Sprintf("is_%s", name),
-					Matcher: fmt.Sprintf("hdr_beg(host) -i %s", rule.Host),
+					Name:    fmt.Sprintf("is_%s_path", name),
+					Matcher: fmt.Sprintf("path_beg %s", path.Path),
 				}
 
 				frontends = append(frontends, frontend{
@@ -130,14 +130,26 @@ func featuresFrom(ingresses []extensions.Ingress, baseDomain string) (backends [
 }
 
 func canonicalizedName(namespace, host, path string) string {
+	cPath := canonicalizedPath(path)
+	namespaceHost := canonicalizedNamespaceHost(namespace, host)
+
+	// Trim all trailing _ and lowercase
+	return strings.ToLower(strings.TrimRight(fmt.Sprintf("%s_%s", namespaceHost, cPath), "_"))
+}
+
+func canonicalizedNamespaceHost(namespace, host string) string {
+	// Replace - with _dash_ and . with _
+	cHost := strings.Replace(host, "-", "_dash_", -1)
+	cHost = strings.Replace(cHost, ".", "_", -1)
+
+	// Concatenate namespace and sanitized hostname with _.
+	return strings.ToLower(fmt.Sprintf("%s_%s", namespace, cHost))
+}
+
+func canonicalizedPath(path string) string {
 	// Replace / in the path with _ and trim any _ prefixes
 	cPath := strings.Replace(path, "/", "_", -1)
 	cPath = strings.TrimLeft(cPath, "_")
 
-	// Replace - and . in hostnames with _
-	cHost := strings.Replace(host, "-", "_", -1)
-	cHost = strings.Replace(cHost, ".", "_", -1)
-
-	// Trim all trailing _ and lowercase
-	return strings.ToLower(strings.TrimRight(fmt.Sprintf("%s_%s_%s", namespace, cHost, cPath), "_"))
+	return strings.ToLower(cPath)
 }
