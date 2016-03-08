@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -14,6 +16,9 @@ import (
 
 var (
 	tmpl = template.Must(template.New("haproxy").Parse(haproxyconf))
+
+	// Shamelessly borrowed from http://stackoverflow.com/questions/106179/regular-expression-to-match-dns-hostname-or-ip-address
+	validHost = regexp.MustCompile(`^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$`)
 )
 
 type ListError struct {
@@ -95,6 +100,12 @@ func (c Config) Update() error {
 func featuresFrom(ingresses []extensions.Ingress, baseDomain string) (backends []backend, hostACLs []acl, frontends []frontend) {
 	for _, i := range ingresses {
 		for _, rule := range i.Spec.Rules {
+			valid := validHost.MatchString(rule.Host)
+			if !valid {
+				log.Printf("skipping invalid host: %s", rule.Host)
+				continue
+			}
+
 			hostACL := acl{
 				Name:    fmt.Sprintf("is_%s_%s", i.Namespace, rule.Host),
 				Matcher: fmt.Sprintf("hdr_beg(host) -i %s", rule.Host+"."+baseDomain),

@@ -163,6 +163,22 @@ func TestFeaturesFrom(t *testing.T) {
 									},
 								},
 							},
+							{
+								Host: "invalid_host",
+								IngressRuleValue: extensions.IngressRuleValue{
+									HTTP: &extensions.HTTPIngressRuleValue{
+										Paths: []extensions.HTTPIngressPath{
+											{
+												Path: "/",
+												Backend: extensions.IngressBackend{
+													ServiceName: "foo",
+													ServicePort: intstr.FromInt(3000),
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
