@@ -61,14 +61,14 @@ type acl struct {
 	Name, Matcher string
 }
 
-func (c Config) Update() error {
+func (c Config) Update() (bool, error) {
 	l, err := c.client.List(api.ListOptions{})
 	if err != nil {
-		return ListError{err}
+		return false, ListError{err}
 	}
 
 	if reflect.DeepEqual(l.Items, c.previous.Items) {
-		return nil
+		return false, nil
 	}
 
 	backends, hostACLs, frontends := featuresFrom(l.Items, c.baseDomain)
@@ -87,17 +87,17 @@ func (c Config) Update() error {
 
 	w, err := os.Create(c.path)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer w.Close()
 
 	err = tmpl.Execute(w, data)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	c.previous = l
-	return nil
+	return true, nil
 }
 
 func featuresFrom(ingresses []extensions.Ingress, baseDomain string) (backends []backend, hostACLs []acl, frontends []frontend) {

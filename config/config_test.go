@@ -288,6 +288,7 @@ func TestUpdate(t *testing.T) {
 		baseDomain string
 		ingresses  []extensions.Ingress
 		err        error
+		changed    bool
 		expected   string
 	}{
 		{
@@ -351,6 +352,7 @@ func TestUpdate(t *testing.T) {
 					},
 				},
 			},
+			changed: true,
 			expected: `
 global
 	daemon
@@ -451,9 +453,15 @@ backend default_bar_baz_path
 		confPath := dir + "/file"
 		c := NewConfig(&fakeIngress{listResults: test.ingresses}, "hostname", confPath, "example.com")
 
-		err := c.Update()
+		changed, err := c.Update()
 		if err != test.err {
 			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if changed != test.changed {
+			t.Logf("want: %v", test.changed)
+			t.Logf(" got: %v", changed)
+			t.Fatalf("unexpected change value")
 		}
 
 		contents, err := ioutil.ReadFile(confPath)
