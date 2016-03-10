@@ -74,7 +74,10 @@ func main() {
 		}
 
 		if changed {
+			log.Print("reloading haproxy")
 			go reloadHaproxy(path)
+		} else {
+			log.Print("haproxy config unchanged")
 		}
 	}
 }
