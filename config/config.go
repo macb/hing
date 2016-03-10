@@ -30,17 +30,18 @@ func (l ListError) Error() string {
 }
 
 type Config struct {
-	path, baseDomain string
-	client           unversioned.IngressInterface
+	hostname, path, baseDomain string
+	client                     unversioned.IngressInterface
 
 	previous *extensions.IngressList
 }
 
-func NewConfig(client unversioned.IngressInterface, path, baseDomain string) *Config {
+func NewConfig(client unversioned.IngressInterface, hostname, path, baseDomain string) *Config {
 	return &Config{
+		hostname:   hostname,
 		path:       path,
-		client:     client,
 		baseDomain: baseDomain,
+		client:     client,
 		previous:   &extensions.IngressList{},
 	}
 }
@@ -60,14 +61,16 @@ type acl struct {
 	Name, Matcher string
 }
 
-func (c Config) Update() error {
+// Update fetches the current ingress list from the given client, renders the
+// new template, and updates the file at the given filepath.
+func (c Config) Update() (bool, error) {
 	l, err := c.client.List(api.ListOptions{})
 	if err != nil {
-		return ListError{err}
+		return false, ListError{err}
 	}
 
 	if reflect.DeepEqual(l.Items, c.previous.Items) {
-		return nil
+		return false, nil
 	}
 
 	backends, hostACLs, frontends := featuresFrom(l.Items, c.baseDomain)
@@ -76,25 +79,27 @@ func (c Config) Update() error {
 		Backends  []backend
 		Frontends []frontend
 		HostACLs  []acl
+		Hostname  string
 	}{
 		Backends:  backends,
 		Frontends: frontends,
 		HostACLs:  hostACLs,
+		Hostname:  c.hostname,
 	}
 
 	w, err := os.Create(c.path)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer w.Close()
 
 	err = tmpl.Execute(w, data)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	c.previous = l
-	return nil
+	return true, nil
 }
 
 func featuresFrom(ingresses []extensions.Ingress, baseDomain string) (backends []backend, hostACLs []acl, frontends []frontend) {

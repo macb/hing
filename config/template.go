@@ -23,7 +23,6 @@ defaults
 	option httplog
 	option redispatch
 	option dontlognull
-	balance source
 
 listen stats
 	bind 127.0.0.1:3000
@@ -41,6 +40,13 @@ backend not_found
 frontend ingress
 	bind :80
 
+	# Order matters for below log-format.
+	capture request header User-Agent len 128
+	capture request header Host len 64
+
+	# JSON logging for ES: http://www.rsyslog.com/json-elasticsearch/
+	log-format @cee:{"program":"haproxy","timestamp":%Ts,"http_status":%ST,"http_request":"%r","remote_addr":"%ci","bytes_read":%B,"upstream_addr":"%si","backend_name":"%b","retries":%rc,"bytes_uploaded":%U,"upstream_response_time":"%Tr","upstream_connect_time":"%Tc","session_duration":"%Tt","termination_state":"%ts","user_agent":"%[capture.req.hdr(1),json]","request_host":"%[capture.req.hdr(2),json]","host":"{{.Hostname}}"}
+
 	# Host ACLs
 {{ range $acl := .HostACLs }}
 	acl {{$acl.Name}} {{$acl.Matcher}}{{end}}
@@ -55,6 +61,11 @@ frontend ingress
 
 {{ range $be := .Backends }}
 backend {{$be.Name}}
+	# Close connections after the proxy.
+	option http-server-close
+	# Include X-Forward-For header.
+	option forwardfor
+
 	balance leastconn
 	server {{$be.Server}} resolvers dns{{end}}
 `

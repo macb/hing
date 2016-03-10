@@ -29,8 +29,12 @@ func main() {
 		ingclient = kubeclient.Extensions().Ingress(api.NamespaceAll)
 	}
 
-	c := config.NewConfig(ingclient, path, os.Getenv("BASE_DOMAIN"))
-	err := c.Update()
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatalf("failed to get hostname: %v.", err)
+	}
+	c := config.NewConfig(ingclient, hostname, path, os.Getenv("BASE_DOMAIN"))
+	_, err = c.Update()
 	if err != nil {
 		log.Fatalf("failed to create conf: %v", err)
 	}
@@ -41,7 +45,7 @@ func main() {
 	ratelimiter := util.NewTokenBucketRateLimiter(0.1, 1)
 	for {
 		ratelimiter.Accept()
-		err := c.Update()
+		changed, err := c.Update()
 		if err != nil {
 			switch err.(type) {
 			case config.ListError:
@@ -52,6 +56,8 @@ func main() {
 			}
 		}
 
-		shellout(fmt.Sprintf("haproxy -f %s -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)", path))
+		if changed {
+			shellout(fmt.Sprintf("haproxy -f %s -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)", path))
+		}
 	}
 }
