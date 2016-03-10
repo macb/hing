@@ -61,6 +61,8 @@ type acl struct {
 	Name, Matcher string
 }
 
+// Update fetches the current ingress list from the given client, renders the
+// new template, and updates the file at the given filepath.
 func (c Config) Update() (bool, error) {
 	l, err := c.client.List(api.ListOptions{})
 	if err != nil {
