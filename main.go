@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -12,10 +12,27 @@ import (
 	"k8s.io/kubernetes/pkg/util"
 )
 
-func shellout(cmd string) {
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+func startHaproxy(config string) {
+	_, err := exec.Command("haproxy", "-f", config).CombinedOutput()
 	if err != nil {
-		log.Fatalf("failed to execute %v: %v, err: %v", cmd, string(out), err)
+		log.Fatalf("haproxy failed to start: %v", err)
+	}
+}
+
+func reloadHaproxy(config string) {
+	pid, err := ioutil.ReadFile("/var/run/haproxy.pid")
+	if err != nil && !os.IsNotExist(err) {
+		log.Fatalf("error reading pidfile: %v", err)
+	}
+
+	args := []string{"-f", config, "-p", "/var/run/haproxy.pid"}
+	if string(pid) != "" {
+		args = []string{"-sf", string(pid)}
+	}
+
+	_, err = exec.Command("haproxy", args...).CombinedOutput()
+	if err != nil {
+		log.Fatalf("haproxy failed to restart: %v", err)
 	}
 }
 
@@ -39,7 +56,7 @@ func main() {
 		log.Fatalf("failed to create conf: %v", err)
 	}
 
-	shellout("haproxy -f " + path)
+	go startHaproxy(path)
 
 	// controller loop
 	ratelimiter := util.NewTokenBucketRateLimiter(0.1, 1)
@@ -57,7 +74,7 @@ func main() {
 		}
 
 		if changed {
-			shellout(fmt.Sprintf("haproxy -f %s -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)", path))
+			go reloadHaproxy(path)
 		}
 	}
 }
