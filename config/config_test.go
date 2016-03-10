@@ -374,7 +374,6 @@ defaults
 	option httplog
 	option redispatch
 	option dontlognull
-	balance source
 
 listen stats
 	bind 127.0.0.1:3000
@@ -391,6 +390,13 @@ backend not_found
 
 frontend ingress
 	bind :80
+
+	# Order matters for below log-format.
+	capture request header User-Agent len 128
+	capture request header Host len 64
+
+	# JSON logging for ES: http://www.rsyslog.com/json-elasticsearch/
+	log-format @cee:{"program":"haproxy","timestamp":%Ts,"http_status":%ST,"http_request":"%r","remote_addr":"%ci","bytes_read":%B,"upstream_addr":"%si","backend_name":"%b","retries":%rc,"bytes_uploaded":%U,"upstream_response_time":"%Tr","upstream_connect_time":"%Tc","session_duration":"%Tt","termination_state":"%ts","user_agent":"%[capture.req.hdr(1),json]","request_host":"%[capture.req.hdr(2),json]","host":"hostname"}
 
 	# Host ACLs
 
@@ -411,12 +417,27 @@ frontend ingress
 
 
 backend default_foo
+	# Close connections after the proxy.
+	option http-server-close
+	# Include X-Forward-For header.
+	option forwardfor
+
 	balance leastconn
 	server foo foo.default.svc.cluster.local:3000 resolvers dns
 backend default_bar_bar_path
+	# Close connections after the proxy.
+	option http-server-close
+	# Include X-Forward-For header.
+	option forwardfor
+
 	balance leastconn
 	server bar bar.default.svc.cluster.local:9000 resolvers dns
 backend default_bar_baz_path
+	# Close connections after the proxy.
+	option http-server-close
+	# Include X-Forward-For header.
+	option forwardfor
+
 	balance leastconn
 	server bar baz.default.svc.cluster.local:9001 resolvers dns
 `,
@@ -428,7 +449,7 @@ backend default_bar_baz_path
 		defer cleanup()
 
 		confPath := dir + "/file"
-		c := NewConfig(&fakeIngress{listResults: test.ingresses}, confPath, "example.com")
+		c := NewConfig(&fakeIngress{listResults: test.ingresses}, "hostname", confPath, "example.com")
 
 		err := c.Update()
 		if err != test.err {
