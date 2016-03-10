@@ -29,8 +29,12 @@ func main() {
 		ingclient = kubeclient.Extensions().Ingress(api.NamespaceAll)
 	}
 
-	c := config.NewConfig(ingclient, path, os.Getenv("BASE_DOMAIN"))
-	err := c.Update()
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatalf("failed to get hostname: %v.", err)
+	}
+	c := config.NewConfig(ingclient, hostname, path, os.Getenv("BASE_DOMAIN"))
+	err = c.Update()
 	if err != nil {
 		log.Fatalf("failed to create conf: %v", err)
 	}

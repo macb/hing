@@ -30,17 +30,18 @@ func (l ListError) Error() string {
 }
 
 type Config struct {
-	path, baseDomain string
-	client           unversioned.IngressInterface
+	hostname, path, baseDomain string
+	client                     unversioned.IngressInterface
 
 	previous *extensions.IngressList
 }
 
-func NewConfig(client unversioned.IngressInterface, path, baseDomain string) *Config {
+func NewConfig(client unversioned.IngressInterface, hostname, path, baseDomain string) *Config {
 	return &Config{
+		hostname:   hostname,
 		path:       path,
-		client:     client,
 		baseDomain: baseDomain,
+		client:     client,
 		previous:   &extensions.IngressList{},
 	}
 }
@@ -76,10 +77,12 @@ func (c Config) Update() error {
 		Backends  []backend
 		Frontends []frontend
 		HostACLs  []acl
+		Hostname  string
 	}{
 		Backends:  backends,
 		Frontends: frontends,
 		HostACLs:  hostACLs,
+		Hostname:  c.hostname,
 	}
 
 	w, err := os.Create(c.path)
