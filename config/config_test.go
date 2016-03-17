@@ -398,7 +398,7 @@ frontend ingress
 	capture request header Host len 64
 
 	# JSON logging for ES: http://www.rsyslog.com/json-elasticsearch/
-	log-format @cee:{"program":"haproxy","timestamp":%Ts,"http_status":%ST,"http_request":"%r","remote_addr":"%ci","bytes_read":%B,"upstream_addr":"%si","backend_name":"%b","retries":%rc,"bytes_uploaded":%U,"upstream_response_time":"%Tr","upstream_connect_time":"%Tc","session_duration":"%Tt","termination_state":"%ts","user_agent":"%[capture.req.hdr(1),json]","request_host":"%[capture.req.hdr(2),json]","host":"hostname"}
+	log-format @cee:{"program":"haproxy","timestamp":%Ts,"http_status":%ST,"http_request":"%r","remote_addr":"%ci","bytes_read":%B,"upstream_addr":"%si","backend_name":"%b","retries":%rc,"bytes_uploaded":%U,"upstream_response_time":"%Tr","upstream_connect_time":"%Tc","session_duration":"%Tt","termination_state":"%ts","user_agent":"%[capture.req.hdr(1),json("utf8s")]","request_host":"%[capture.req.hdr(2),json("utf8s")]","host":"hostname"}
 
 	# Host ACLs
 
@@ -496,6 +496,10 @@ backend default_bar_baz_path
 
 			t.Logf("diff results:\n%s", string(output))
 			t.Fatal("unexpected config contents")
+		}
+
+		if updated, err := c.Update(); updated != false && err != nil {
+			t.Fatal("update should not update with duplicate calls")
 		}
 	}
 
