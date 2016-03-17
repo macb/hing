@@ -33,7 +33,7 @@ type Config struct {
 	hostname, path, baseDomain string
 	client                     unversioned.IngressInterface
 
-	previous *extensions.IngressList
+	previous data
 }
 
 func NewConfig(client unversioned.IngressInterface, hostname, path, baseDomain string) *Config {
@@ -42,7 +42,7 @@ func NewConfig(client unversioned.IngressInterface, hostname, path, baseDomain s
 		path:       path,
 		baseDomain: baseDomain,
 		client:     client,
-		previous:   &extensions.IngressList{},
+		previous:   data{},
 	}
 }
 
@@ -61,6 +61,13 @@ type acl struct {
 	Name, Matcher string
 }
 
+type data struct {
+	Backends  []backend
+	Frontends []frontend
+	HostACLs  []acl
+	Hostname  string
+}
+
 // Update fetches the current ingress list from the given client, renders the
 // new template, and updates the file at the given filepath.
 func (c Config) Update() (bool, error) {
@@ -69,22 +76,20 @@ func (c Config) Update() (bool, error) {
 		return false, ListError{err}
 	}
 
-	if reflect.DeepEqual(l.Items, c.previous.Items) {
-		return false, nil
-	}
-
 	backends, hostACLs, frontends := featuresFrom(l.Items, c.baseDomain)
 
-	data := struct {
-		Backends  []backend
-		Frontends []frontend
-		HostACLs  []acl
-		Hostname  string
-	}{
+	d := data{
 		Backends:  backends,
 		Frontends: frontends,
 		HostACLs:  hostACLs,
 		Hostname:  c.hostname,
+	}
+
+	// BUG(macb): Order matters for the involved slices. If for some reason the
+	// API returns data differently or featuresFrom produces less reliable ordering
+	// this will be useless.
+	if reflect.DeepEqual(d, c.previous) {
+		return false, nil
 	}
 
 	w, err := os.Create(c.path)
@@ -93,12 +98,12 @@ func (c Config) Update() (bool, error) {
 	}
 	defer w.Close()
 
-	err = tmpl.Execute(w, data)
+	err = tmpl.Execute(w, d)
 	if err != nil {
 		return false, err
 	}
 
-	c.previous = l
+	c.previous = d
 	return true, nil
 }
 
